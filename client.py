@@ -2,6 +2,8 @@ import asyncio
 import websockets #type:ignore
 import json
 from utils import *
+import requests
+import aiohttp
 
 class DiscordClient:
     def __init__(self, token, client_id, guild_id) -> None:
@@ -77,4 +79,42 @@ class DiscordClient:
         async for message in self.websocket:
             data = json.loads(message)
             await handle_event(data)
+
+
+    async def register_slash_command(self, client_id, guild_id):
+        url = self.base_url + f"/v10/applications/{client_id}/guilds/{guild_id}/commands"
+        headers = {
+            "Authorization": f"Bot {self.token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "name": "hello",  # Nome do comando
+            "description": "Says hello",  # Descrição do comando
+            "type": 1  # Tipo: Slash Command
+        }
     
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code == 201:
+            print(f"[+] Slash command 'hello' registered!")
+        else:
+            print(f"[!] Failed to register command: {response.status_code}, {response.text}")
+
+    async def send_interaction_response(self, interaction_id, interaction_token, content):
+        url = self.base_url + f"/v10/interactions/{interaction_id}/{interaction_token}/callback"
+        headers = {
+            "Authorization": f"Bot {self.token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "type": 4,  # Resposta para o canal
+            "data": {
+                "content": content
+            }
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as response:
+                if response.status == 200:
+                    print("[+] Answer sent!")
+                else:
+                    print(f"[!] Failed to answer: {response.status}")
